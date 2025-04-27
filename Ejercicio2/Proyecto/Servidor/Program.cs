@@ -1,95 +1,62 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using NetworkStreamNS;
-using VehiculoClass;
 using CarreteraClass;
+using VehiculoClass;
+using System.Xml.Serialization;
 
-namespace Servidor
+class Servidor
 {
-    class Program
+    static void Main(string[] args)
     {
-        private static List<Cliente> _clientes = new List<Cliente>();
-        private static Carretera _carretera = new Carretera();
+        // Dirección y puerto del servidor
+        string servidorIp = "127.0.0.1"; // IP del servidor
+        int puerto = 12345; // Puerto donde escucha el servidor
 
-        static void Main(string[] args)
+        try
         {
-            const int port = 5000;
-            var listener = new TcpListener(IPAddress.Any, port);
-            listener.Start();
-            Console.WriteLine($"[Servidor] Escuchando en el puerto {port}...");
+            // Crear un servidor TCP
+            TcpListener servidor = new TcpListener(IPAddress.Parse(servidorIp), puerto);
+            servidor.Start();
+            Console.WriteLine("Servidor iniciado. Esperando clientes...");
+
+            // Crear una carretera para almacenar los vehículos
+            Carretera carretera = new Carretera();
 
             while (true)
             {
-                TcpClient client = listener.AcceptTcpClient();
-                Console.WriteLine("[Servidor] Cliente conectado, lanzando hilo de gestión...");
-                Thread t = new Thread(HandleClient);
-                t.Start(client);
-            }
-        }
+                // Aceptar la conexión de un cliente
+                TcpClient cliente = servidor.AcceptTcpClient();
+                NetworkStream ns = cliente.GetStream();
+                Console.WriteLine("Cliente conectado.");
 
-        static void HandleClient(object? state)
-        {
-            if (state is not TcpClient client)
-            {
-                Console.WriteLine("[Servidor] Estado inválido en el hilo de cliente.");
-                return;
-            }
+                // Leer el vehículo enviado por el cliente
+                Vehiculo vehiculoRecibido = NetworkStreamClass.LeerDatosVehiculoNS(ns);
+                Console.WriteLine($"Vehículo recibido con ID: {vehiculoRecibido.Id}");
 
-            // Crear objeto cliente
-            var nuevoCliente = new Cliente(client);
-            _clientes.Add(nuevoCliente);
-            Console.WriteLine($"[Servidor] Nuevo cliente conectado. Total clientes: {_clientes.Count}");
+                // Añadir el vehículo a la carretera
+                carretera.AñadirVehiculo(vehiculoRecibido);
 
-            try
-            {
-                using NetworkStream ns = client.GetStream();
-                // Recibir datos de vehículos
-                while (true)
+                // Mostrar los vehículos en la carretera
+                string vehiculosEnCarretera = "Vehículos en la carretera:\n";
+                foreach (Vehiculo v in carretera.VehiculosEnCarretera)
                 {
-                    // Leer el mensaje del cliente
-                    string mensaje = NetworkStreamClass.LeerMensajeNetworkStream(ns);
-
-                    // Aquí podrías recibir información del vehículo
-                    // Supongamos que se recibe un vehículo
-                    Vehiculo vehiculoRecibido = Vehiculo.BytesAVehiculo(Encoding.Unicode.GetBytes(mensaje));
-                    _carretera.AñadirVehiculo(vehiculoRecibido);
-
-                    // Enviar la simulación completa a todos los clientes
-                    foreach (var c in _clientes)
-                    {
-                        NetworkStreamClass.EscribirMensajeNetworkStream(c.NetworkStream, Encoding.Unicode.GetString(_carretera.CarreteraABytes()));
-                    }
-
-                    Console.WriteLine($"[Servidor] Vehículo ID {vehiculoRecibido.Id} recibido y agregado. Total vehículos en carretera: {_carretera.NumVehiculosEnCarrera}");
+                    vehiculosEnCarretera += $"ID: {v.Id} - Pos: {v.Pos} - Dir: {v.Direccion}\n";
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Servidor] Error con cliente: {ex.Message}");
-            }
-            finally
-            {
-                _clientes.Remove(nuevoCliente);
-                client.Close();
-                Console.WriteLine($"[Servidor] Cliente desconectado. Total clientes: {_clientes.Count}");
+
+                // Enviar la lista de vehículos al cliente
+                NetworkStreamClass.EscribirMensajeNetworkStream(ns, vehiculosEnCarretera);
+                Console.WriteLine("Vehículos enviados al cliente.");
+
+                // Cerrar la conexión con el cliente
+                cliente.Close();
             }
         }
-    }
-    
-    // Clase Cliente
-    public class Cliente
-    {
-        public TcpClient TcpClient { get; }
-        public NetworkStream NetworkStream { get; }
-
-        public Cliente(TcpClient tcpClient)
+        catch (Exception ex)
         {
-            TcpClient = tcpClient;
-            NetworkStream = tcpClient.GetStream();
+            Console.WriteLine($"Error: {ex.Message}");
         }
     }
 }

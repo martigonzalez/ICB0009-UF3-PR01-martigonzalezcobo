@@ -1,49 +1,54 @@
 ﻿using System;
+using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using NetworkStreamNS;
 using VehiculoClass;
-using CarreteraClass;
+using System.Xml.Serialization;
 
-namespace Cliente
+class Cliente
 {
-    class Program
+    static void Main(string[] args)
     {
-        static void Main(string[] args)
+        // Dirección del servidor y puerto
+        string servidorIp = "127.0.0.1"; // IP del servidor
+        int puerto = 12345; // Puerto que estará escuchando el servidor
+
+        try
         {
-            const string serverIp = "127.0.0.1";
-            const int serverPort = 5000;
+            // Establecemos la conexión con el servidor
+            TcpClient cliente = new TcpClient(servidorIp, puerto);
+            NetworkStream ns = cliente.GetStream();
 
-            try
+            // Crear un nuevo vehículo
+            Vehiculo nuevoVehiculo = new Vehiculo()
             {
-                Console.WriteLine($"[Cliente] Intentando conectar a {serverIp}:{serverPort}...");
-                using var client = new TcpClient();
-                client.Connect(serverIp, serverPort);
-                Console.WriteLine("[Cliente] Conectado al servidor.");
+                Id = new Random().Next(1, 1000), // ID aleatorio
+                Pos = 0, // Inicia en la posición 0
+                Velocidad = new Random().Next(100, 500), // Velocidad aleatoria
+                Acabado = false,
+                Direccion = "Norte", // Puede ser "Norte" o "Sur"
+                Parado = false
+            };
 
-                using NetworkStream ns = client.GetStream();
+            // Enviar los datos del vehículo al servidor
+            NetworkStreamClass.EscribirDatosVehiculoNS(ns, nuevoVehiculo);
+            Console.WriteLine($"Vehículo creado con ID: {nuevoVehiculo.Id} y enviado al servidor.");
 
-                // Recibir simulación de la carretera
-                while (true)
-                {
-                    string mensaje = NetworkStreamClass.LeerMensajeNetworkStream(ns);
+            // Esperar un poco para que el servidor procese los datos
+            Thread.Sleep(1000);
 
-                    // Deserializar la carretera
-                    Carretera carreteraRecibida = Carretera.BytesACarretera(System.Text.Encoding.Unicode.GetBytes(mensaje));
+            // Mostrar los vehículos de la carretera (en este ejemplo solo se muestra el ID)
+            string respuesta = NetworkStreamClass.LeerMensajeNetworkStream(ns);
+            Console.WriteLine("Vehículos en la carretera:");
+            Console.WriteLine(respuesta);
 
-                    // Mostrar la simulación
-                    foreach (var vehiculo in carreteraRecibida.VehiculosEnCarretera)
-                    {
-                        Console.WriteLine($"[{vehiculo.Direccion}] Vehículo #{vehiculo.Id}: {'█' * (vehiculo.Pos / 2)}{'▒' * ((100 - vehiculo.Pos) / 2)} (km {vehiculo.Pos} - {(vehiculo.Parado ? "Esperando" : "Cruzando")})");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Cliente] Error: {ex.Message}");
-            }
-
-            Console.WriteLine("[Cliente] Fin de ejecución. Pulsa Enter para cerrar.");
-            Console.ReadLine();
+            // Cerrar la conexión
+            cliente.Close();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
         }
     }
 }

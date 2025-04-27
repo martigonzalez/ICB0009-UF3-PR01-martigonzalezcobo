@@ -4,6 +4,7 @@ using System.Text;
 using System.IO;
 using VehiculoClass;
 using CarreteraClass;
+using System.Xml.Serialization;
 
 namespace NetworkStreamNS
 {
