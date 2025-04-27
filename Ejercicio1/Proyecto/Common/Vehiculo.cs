@@ -1,49 +1,38 @@
 using System.Xml.Serialization;
 
-namespace VehiculoClass;
-
-[Serializable]
-public class Vehiculo
+namespace VehiculoClass
 {
-    public int Id {get; set;}
-    public int Pos {get;set;}
-    public int Velocidad {get; set;}
-    public string Direccion {get; set;} // "Norte" o "Sur" 
-    public bool Acabado {get;set;}
-    public bool Parado {get; set;}
-    
-    public Vehiculo()
+    [Serializable]
+    public class Vehiculo
     {
-        var randVelocidad = new Random();
+        public int Id { get; set; }
+        public int Pos { get; set; }
+        public int Velocidad { get; set; }
+        public string Direccion { get; set; }
+        public bool Acabado { get; set; }
+        public bool Parado { get; set; }
 
-        this.Velocidad = randVelocidad.Next(100,500);
-        this.Pos = 0;
-        this.Acabado = false;
-    }
+        public Vehiculo()
+        {
+            var rnd = new Random();
+            Velocidad = rnd.Next(100, 500);
+            Pos = 0;
+            Acabado = false;
+        }
 
-    //Permite serializar Vehiculo a array de bytes mediant formato XML
-    public byte[] VehiculoaBytes()
-    {
-        XmlSerializer serializer = new XmlSerializer(typeof(Vehiculo));
-            
-        MemoryStream MS = new MemoryStream();
-  
-        serializer.Serialize(MS, this);
-       
-        return MS.ToArray();
-    }
+        public byte[] VehiculoaBytes()
+        {
+            var ser = new XmlSerializer(typeof(Vehiculo));
+            using var ms = new MemoryStream();
+            ser.Serialize(ms, this);
+            return ms.ToArray();
+        }
 
-    //Permite desserializar una cadena de bytes a un objeto de tipo Vehiculo
-    public static Vehiculo BytesAVehiculo(byte[] bytesVehiculo)
-    {
-        Vehiculo tmpVehiculo; 
-        
-        XmlSerializer serializer = new XmlSerializer(typeof(Vehiculo));
-
-        MemoryStream MS = new MemoryStream(bytesVehiculo);
-
-        tmpVehiculo = (Vehiculo)serializer.Deserialize(MS);
-
-        return tmpVehiculo;
+        public static Vehiculo BytesAVehiculo(byte[] data)
+        {
+            var ser = new XmlSerializer(typeof(Vehiculo));
+            using var ms = new MemoryStream(data);
+            return (Vehiculo)ser.Deserialize(ms)!;
+        }
     }
 }

@@ -51,13 +51,16 @@ namespace Servidor
 
             try
             {
-                using (var ns = client.GetStream())
+                // Etapa 4: obtener NetworkStream
+                NetworkStream ns = client.GetStream();
+                Console.WriteLine($"[Servidor] NetworkStream obtenido para vehículo ID {vehiculo.Id}.");
+                using (ns)
                 {
-                    // Leer saludo del cliente
+                    // Leer saludo del cliente (Etapa 1)
                     var mensaje = NetworkStreamClass.LeerMensajeNetworkStream(ns);
                     Console.WriteLine($"[Servidor] Recibido de ID {vehiculo.Id}: {mensaje}");
 
-                    // Enviar confirmación con ID asignado
+                    // Enviar confirmación con ID asignado (Etapa 3)
                     var respuesta = $"ID={vehiculo.Id}; Dirección={vehiculo.Direccion}";
                     NetworkStreamClass.EscribirMensajeNetworkStream(ns, respuesta);
                     Console.WriteLine($"[Servidor] Respondido a ID {vehiculo.Id}: {respuesta}");

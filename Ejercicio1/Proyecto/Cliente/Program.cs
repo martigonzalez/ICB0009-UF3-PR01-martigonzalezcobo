@@ -22,7 +22,10 @@ namespace Client
                     client.Connect(serverIp, serverPort);
                     Console.WriteLine("[Cliente] Conectado al servidor.");
 
-                    using (var ns = client.GetStream())
+                    // Etapa 4: obtener NetworkStream
+                    NetworkStream ns = client.GetStream();
+                    Console.WriteLine("[Cliente] NetworkStream obtenido.");
+                    using (ns)
                     {
                         // Etapa 1: enviar saludo
                         const string saludo = "Hola servidor, soy un vehículo";
