@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Collections.Generic;
 using NetworkStreamNS;
 using CarreteraClass;
 using VehiculoClass;
@@ -13,6 +14,10 @@ namespace Servidor
         private static int _nextId = 1;
         private static readonly object _idLock = new object();
         private static readonly Random _rand = new Random();
+        
+        // Lista de clientes conectados
+        private static List<Cliente> _clientesConectados = new List<Cliente>();
+        private static readonly object _clientesLock = new object();
 
         static void Main(string[] args)
         {
@@ -38,7 +43,6 @@ namespace Servidor
                 return;
             }
 
-            // Etapa 3: asignar ID único y dirección aleatoria
             int id;
             string direccion;
             lock (_idLock)
@@ -47,26 +51,34 @@ namespace Servidor
                 direccion = _rand.Next(2) == 0 ? "Norte" : "Sur";
             }
             Vehiculo vehiculo = new Vehiculo { Id = id, Direccion = direccion };
-            Console.WriteLine($"[Servidor] Asignado ID {vehiculo.Id} y dirección {vehiculo.Direccion} al vehículo.");
+            Cliente? nuevoCliente = null; // Cambio clave: añadir '?' para nullable
 
             try
             {
-                // Etapa 4: obtener NetworkStream
-                using NetworkStream ns = client.GetStream();
+                NetworkStream ns = client.GetStream();
                 Console.WriteLine($"[Servidor] NetworkStream obtenido para vehículo ID {vehiculo.Id}.");
 
-                // Etapa 6: Handshake
-                // 1. Servidor recibe petición 'INICIO'
+                // Handshake
                 string inicio = NetworkStreamClass.LeerMensajeNetworkStream(ns);
                 Console.WriteLine($"[Servidor] Handshake: recibido '{inicio}' de ID provisional {vehiculo.Id}.");
 
-                // 2. Servidor envía ID asignado
                 NetworkStreamClass.EscribirMensajeNetworkStream(ns, vehiculo.Id.ToString());
                 Console.WriteLine($"[Servidor] Handshake: enviado ID '{vehiculo.Id}'.");
 
-                // 3. Servidor recibe confirmación del ID
                 string confirmacion = NetworkStreamClass.LeerMensajeNetworkStream(ns);
                 Console.WriteLine($"[Servidor] Handshake: recibido confirmación ID '{confirmacion}'.");
+
+                // Añadir a lista de clientes
+                nuevoCliente = new Cliente { 
+                    Id = id, 
+                    NetworkStream = ns 
+                };
+                
+                lock (_clientesLock)
+                {
+                    _clientesConectados.Add(nuevoCliente);
+                    Console.WriteLine($"[Servidor] Cliente ID {id} añadido. Total conectados: {_clientesConectados.Count}");
+                }
 
                 Console.WriteLine($"[Servidor] Handshake completado con vehículo ID {vehiculo.Id}. Cliente listo.");
             }
@@ -76,6 +88,14 @@ namespace Servidor
             }
             finally
             {
+                if (nuevoCliente != null)
+                {
+                    lock (_clientesLock)
+                    {
+                        _clientesConectados.Remove(nuevoCliente);
+                        Console.WriteLine($"[Servidor] Cliente ID {nuevoCliente.Id} eliminado. Total conectados: {_clientesConectados.Count}");
+                    }
+                }
                 client.Close();
                 Console.WriteLine($"[Servidor] Conexión con vehículo ID {id} cerrada.");
             }

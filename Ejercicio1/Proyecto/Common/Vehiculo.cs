@@ -19,6 +19,7 @@ namespace VehiculoClass
             var rnd = new Random();
             Velocidad = rnd.Next(100, 500);
             Pos = 0;
+            Direccion = string.Empty;
             Acabado = false;
         }
 
