@@ -27,7 +27,6 @@ namespace Servidor
             }
         }
 
-        // Cambiamos a object? para ajustarnos a ParameterizedThreadStart
         static void HandleClient(object? state)
         {
             if (state is not TcpClient client)
