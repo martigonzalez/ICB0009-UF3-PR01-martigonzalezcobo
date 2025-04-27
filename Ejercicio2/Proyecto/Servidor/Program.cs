@@ -5,10 +5,14 @@ using System.Threading;
 using NetworkStreamNS;
 using CarreteraClass;
 using VehiculoClass;
+using System.Collections.Generic;
 using System.Xml.Serialization;
 
 class Servidor
 {
+    static List<TcpClient> clientesConectados = new List<TcpClient>();  // Lista para almacenar los clientes conectados
+    static Carretera carretera = new Carretera();  // La carretera que contiene los vehículos
+
     static void Main(string[] args)
     {
         // Dirección y puerto del servidor
@@ -22,58 +26,77 @@ class Servidor
             servidor.Start();
             Console.WriteLine("Servidor iniciado. Esperando clientes...");
 
-            // Crear una carretera para almacenar los vehículos
-            Carretera carretera = new Carretera();
-
             while (true)
             {
                 // Aceptar la conexión de un cliente
                 TcpClient cliente = servidor.AcceptTcpClient();
+                clientesConectados.Add(cliente);  // Agregar cliente a la lista de conectados
                 NetworkStream ns = cliente.GetStream();
                 Console.WriteLine("Cliente conectado.");
 
-                // Leer los datos del vehículo enviado por el cliente
-                Vehiculo vehiculoRecibido = null;
-
-                // Bucle que maneja la actualización del vehículo
-                while (true)
-                {
-                    // Leer el vehículo desde el cliente
-                    vehiculoRecibido = NetworkStreamClass.LeerDatosVehiculoNS(ns);
-                    Console.WriteLine($"Vehículo recibido con ID: {vehiculoRecibido.Id} - Pos: {vehiculoRecibido.Pos}");
-
-                    // Actualizar la carretera con el vehículo
-                    carretera.ActualizarVehiculo(vehiculoRecibido);
-
-                    // Mostrar los vehículos en la carretera
-                    string vehiculosEnCarretera = "Vehículos en la carretera:\n";
-                    foreach (Vehiculo v in carretera.VehiculosEnCarretera)
-                    {
-                        vehiculosEnCarretera += $"ID: {v.Id} - Pos: {v.Pos} - Dir: {v.Direccion}\n";
-                    }
-
-                    // Enviar la lista de vehículos al cliente
-                    NetworkStreamClass.EscribirMensajeNetworkStream(ns, vehiculosEnCarretera);
-                    Console.WriteLine("Vehículos enviados al cliente.");
-
-                    // Si el vehículo ha terminado su recorrido, salir del bucle
-                    if (vehiculoRecibido.Acabado)
-                    {
-                        Console.WriteLine($"El vehículo ID: {vehiculoRecibido.Id} ha completado su recorrido.");
-                        break;
-                    }
-
-                    // Esperar antes de leer el siguiente paquete
-                    Thread.Sleep(500);
-                }
-
-                // Cerrar la conexión con el cliente
-                cliente.Close();
+                // Crear un hilo para manejar la comunicación con el cliente
+                Thread clienteThread = new Thread(() => ManejarCliente(cliente, ns));
+                clienteThread.Start();
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
+    // Método para manejar la comunicación con un cliente específico
+    static void ManejarCliente(TcpClient cliente, NetworkStream ns)
+    {
+        try
+        {
+            while (true)
+            {
+                // Leer el vehículo enviado por el cliente
+                Vehiculo vehiculoRecibido = NetworkStreamClass.LeerDatosVehiculoNS(ns);
+                Console.WriteLine($"Vehículo recibido con ID: {vehiculoRecibido.Id}");
+
+                // Actualizar la carretera con el vehículo recibido
+                carretera.ActualizarVehiculo(vehiculoRecibido);
+
+                // Enviar los datos de la carretera a todos los clientes
+                EnviarDatosATodosLosClientes();
+
+                // Esperar un poco antes de continuar (simula la actualización periódica)
+                Thread.Sleep(500);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en la comunicación con el cliente: {ex.Message}");
+        }
+        finally
+        {
+            // Cerrar la conexión con el cliente cuando se desconecte
+            clientesConectados.Remove(cliente);
+            cliente.Close();
+        }
+    }
+
+    // Método para enviar los datos de la carretera a todos los clientes conectados
+    static void EnviarDatosATodosLosClientes()
+    {
+        // Serializar la carretera
+        byte[] carreteraBytes = carretera.CarreteraABytes();
+
+        // Recorrer todos los clientes conectados y enviarles los datos de la carretera
+        foreach (TcpClient cliente in clientesConectados)
+        {
+            try
+            {
+                NetworkStream ns = cliente.GetStream();
+                // Enviar los datos de la carretera al cliente
+                NetworkStreamClass.EscribirDatosNetworkStream(ns, carreteraBytes);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al enviar datos al cliente: {ex.Message}");
+            }
         }
     }
 }
