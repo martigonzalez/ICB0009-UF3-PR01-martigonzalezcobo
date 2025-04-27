@@ -1,83 +1,128 @@
 ﻿using System;
-using System.Net;
-using System.Net.Sockets;
-using System.Threading;
-using NetworkStreamNS;
-using VehiculoClass;
+using System.IO;
 using System.Xml.Serialization;
+using VehiculoClass;
+using CarreteraClass;
+using NetworkStreamNS;
+using System.Net.Sockets;
 
-class Cliente
+namespace Cliente
 {
-    static void Main(string[] args)
+    class Program
     {
-        // Dirección del servidor y puerto
-        string servidorIp = "127.0.0.1"; // IP del servidor
-        int puerto = 12345; // Puerto que estará escuchando el servidor
+        static TcpClient cliente = new TcpClient(); // Inicializa el cliente
+        static NetworkStream ns;
+        static Vehiculo vehiculo = new Vehiculo(); // Inicializa el vehículo
 
-        try
+        static void Main(string[] args)
         {
-            // Establecemos la conexión con el servidor
-            TcpClient cliente = new TcpClient(servidorIp, puerto);
-            NetworkStream ns = cliente.GetStream();
+            // Dirección del servidor y puerto
+            string servidorIp = "127.0.0.1"; // IP del servidor
+            int puerto = 12345; // Puerto que estará escuchando el servidor
 
-            // Crear un nuevo vehículo
-            Vehiculo nuevoVehiculo = new Vehiculo()
+            try
             {
-                Id = new Random().Next(1, 1000), // ID aleatorio
-                Pos = 0, // Inicia en la posición 0
-                Velocidad = new Random().Next(100, 500), // Velocidad aleatoria
-                Acabado = false,
-                Direccion = "Norte", // Puede ser "Norte" o "Sur"
-                Parado = false
-            };
+                // Establecemos la conexión con el servidor
+                cliente = new TcpClient(servidorIp, puerto);
+                ns = cliente.GetStream();
 
-            // Enviar el vehículo al servidor
-            NetworkStreamClass.EscribirDatosVehiculoNS(ns, nuevoVehiculo);
-            Console.WriteLine($"Vehículo creado con ID: {nuevoVehiculo.Id} y enviado al servidor.");
+                // Crear un nuevo vehículo
+                vehiculo = new Vehiculo()
+                {
+                    Id = new Random().Next(1, 1000), // ID aleatorio
+                    Pos = 0, // Inicia en la posición 0
+                    Velocidad = new Random().Next(100, 500), // Velocidad aleatoria
+                    Acabado = false,
+                    Direccion = "Norte", // Puede ser "Norte" o "Sur"
+                    Parado = false
+                };
 
-            // Avanzar el vehículo en un bucle de 0 a 100
-            for (int i = 1; i <= 100; i++)
+                // Enviar los datos del vehículo al servidor
+                NetworkStreamClass.EscribirDatosVehiculoNS(ns, vehiculo);
+                Console.WriteLine($"Vehículo creado con ID: {vehiculo.Id} y enviado al servidor.");
+
+                // Iniciar un hilo para recibir los datos de la carretera
+                Thread recibirDatosThread = new Thread(RecibirDatosDelServidor);
+                recibirDatosThread.Start();
+
+                // Hacer que el vehículo avance (simulando su movimiento)
+                AvanzarVehiculo();
+
+                // Cerrar la conexión
+                cliente.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+        }
+
+        // Método para hacer avanzar el vehículo
+        static void AvanzarVehiculo()
+        {
+            for (int i = 0; i <= 100; i++)
             {
                 // Actualizar la posición del vehículo
-                nuevoVehiculo.Pos = i;
-
-                // Si el vehículo ha llegado al final, marcarlo como acabado
-                if (i == 100)
+                vehiculo.Pos = i;
+                // Enviar la actualización al servidor
+                try
                 {
-                    nuevoVehiculo.Acabado = true;
-                    Console.WriteLine("Vehículo ha completado su recorrido.");
+                    NetworkStreamClass.EscribirDatosVehiculoNS(ns, vehiculo);
+                    Console.WriteLine($"Vehículo {vehiculo.Id} avanzando a la posición {vehiculo.Pos}");
+                    Thread.Sleep(1000); // Simula el tiempo que tarda en avanzar
                 }
-
-                // Enviar los datos actualizados del vehículo al servidor
-                NetworkStreamClass.EscribirDatosVehiculoNS(ns, nuevoVehiculo);
-
-                // Mostrar el avance en la consola
-                Console.WriteLine($"Vehículo ID: {nuevoVehiculo.Id} - Pos: {nuevoVehiculo.Pos}");
-
-                // Simular el tiempo de avance según la velocidad del vehículo
-                Thread.Sleep(1000 / (nuevoVehiculo.Velocidad / 100)); // La velocidad influye en la pausa
-
-                // Si el vehículo ha terminado, salir del bucle
-                if (nuevoVehiculo.Acabado)
+                catch (Exception ex)
                 {
-                    break;
+                    Console.WriteLine($"Error al enviar datos del vehículo: {ex.Message}");
                 }
             }
 
-            // Esperar un poco para que el servidor procese los datos y actualice la carretera
-            Thread.Sleep(1000);
-
-            // Mostrar los vehículos de la carretera (en este ejemplo solo se muestra el ID)
-            string respuesta = NetworkStreamClass.LeerMensajeNetworkStream(ns);
-            Console.WriteLine("Vehículos en la carretera:");
-            Console.WriteLine(respuesta);
-
-            // Cerrar la conexión
-            cliente.Close();
+            // Al terminar, marcar el vehículo como acabado
+            vehiculo.Acabado = true;
+            try
+            {
+                NetworkStreamClass.EscribirDatosVehiculoNS(ns, vehiculo);
+                Console.WriteLine($"Vehículo {vehiculo.Id} ha terminado el recorrido.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al enviar la información final del vehículo: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+
+        // Método para recibir los datos del servidor de forma concurrente
+        static void RecibirDatosDelServidor()
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            try
+            {
+                while (true)
+                {
+                    // Leer los datos de la carretera enviados por el servidor
+                    Carretera carreteraRecibida = NetworkStreamClass.LeerDatosCarreteraNS(ns); // Cambiar a LeerDatosCarreteraNS
+                    
+                    // Mostrar los vehículos en la carretera
+                    Console.Clear();
+                    Console.WriteLine("Vehículos en la carretera:");
+                    foreach (Vehiculo v in carreteraRecibida.VehiculosEnCarretera)  // Ahora accedes correctamente a la carretera
+                    {
+                        Console.WriteLine($"ID: {v.Id}, Posición: {v.Pos}, Dirección: {v.Direccion}, Acabado: {v.Acabado}");
+                    }
+
+                    // Si el vehículo ha terminado, mostramos un mensaje de ganador
+                    if (vehiculo.Acabado)
+                    {
+                        Console.WriteLine($"¡El vehículo {vehiculo.Id} ha terminado su recorrido!");
+                        break;
+                    }
+
+                    // Esperar un momento antes de recibir la siguiente actualización
+                    Thread.Sleep(1000);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al recibir los datos del servidor: {ex.Message}");
+            }
         }
     }
 }

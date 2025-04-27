@@ -90,8 +90,9 @@ class Servidor
             try
             {
                 NetworkStream ns = cliente.GetStream();
-                // Enviar los datos de la carretera al cliente
-                NetworkStreamClass.EscribirDatosNetworkStream(ns, carreteraBytes);
+                // Cambiar esta línea
+                NetworkStreamClass.EscribirDatosCarreteraNS(ns, carretera);  // Usamos EscribirDatosCarreteraNS
+
             }
             catch (Exception ex)
             {

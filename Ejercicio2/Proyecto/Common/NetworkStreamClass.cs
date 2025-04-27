@@ -31,6 +31,7 @@ namespace NetworkStreamNS
                 do
                 {
                     int read = NS.Read(buffer, 0, buffer.Length);
+                    if (read == 0) return null; // Asegura que no leemos nada si es nulo o vacío.
                     ms.Write(buffer, 0, read);
                     bytesLeidos += read;
                 } while (NS.DataAvailable);
@@ -66,6 +67,7 @@ namespace NetworkStreamNS
                 do
                 {
                     int read = NS.Read(buffer, 0, buffer.Length);
+                    if (read == 0) return null; // Asegura que no leemos nada si es nulo o vacío.
                     ms.Write(buffer, 0, read);
                     bytesLeidos += read;
                 } while (NS.DataAvailable);
