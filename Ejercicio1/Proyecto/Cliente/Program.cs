@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Net.Sockets;
-using System.Text;
 using NetworkStreamNS;
 using CarreteraClass;
 using VehiculoClass;
@@ -17,26 +16,28 @@ namespace Client
             try
             {
                 Console.WriteLine($"[Cliente] Intentando conectar a {serverIp}:{serverPort}...");
-                using (var client = new TcpClient())
-                {
-                    client.Connect(serverIp, serverPort);
-                    Console.WriteLine("[Cliente] Conectado al servidor.");
+                using var client = new TcpClient();
+                client.Connect(serverIp, serverPort);
+                Console.WriteLine("[Cliente] Conectado al servidor.");
 
-                    // Etapa 4: obtener NetworkStream
-                    using (NetworkStream ns = client.GetStream())
-                    {
-                        Console.WriteLine("[Cliente] NetworkStream obtenido.");
-                        
-                        // Etapa 1: enviar saludo
-                        const string saludo = "Hola servidor, soy un vehículo";
-                        NetworkStreamClass.EscribirMensajeNetworkStream(ns, saludo);
-                        Console.WriteLine($"[Cliente] Enviado: {saludo}");
+                // Etapa 4: obtener NetworkStream
+                using NetworkStream ns = client.GetStream();
+                Console.WriteLine("[Cliente] NetworkStream obtenido.");
 
-                        // Leer respuesta del servidor
-                        string respuesta = NetworkStreamClass.LeerMensajeNetworkStream(ns);
-                        Console.WriteLine($"[Cliente] Recibido: {respuesta}");
-                    }
-                }
+                // Etapa 6: Handshake
+                // 1. Cliente inicia handshake
+                NetworkStreamClass.EscribirMensajeNetworkStream(ns, "INICIO");
+                Console.WriteLine("[Cliente] Handshake: enviado 'INICIO'.");
+
+                // 2. Cliente recibe ID asignado
+                string idAsignado = NetworkStreamClass.LeerMensajeNetworkStream(ns);
+                Console.WriteLine($"[Cliente] Handshake: recibido ID '{idAsignado}'.");
+
+                // 3. Cliente envía confirmación del ID
+                NetworkStreamClass.EscribirMensajeNetworkStream(ns, idAsignado);
+                Console.WriteLine($"[Cliente] Handshake: enviado confirmación ID '{idAsignado}'.");
+
+                Console.WriteLine("[Cliente] Handshake completado. Cliente listo para ejecutar.");
             }
             catch (Exception ex)
             {

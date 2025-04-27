@@ -52,23 +52,27 @@ namespace Servidor
             try
             {
                 // Etapa 4: obtener NetworkStream
-                using (NetworkStream ns = client.GetStream())
-                {
-                    Console.WriteLine($"[Servidor] NetworkStream obtenido para vehículo ID {vehiculo.Id}.");
-                    
-                    // Leer saludo del cliente (Etapa 1)
-                    string mensaje = NetworkStreamClass.LeerMensajeNetworkStream(ns);
-                    Console.WriteLine($"[Servidor] Recibido de ID {vehiculo.Id}: {mensaje}");
+                using NetworkStream ns = client.GetStream();
+                Console.WriteLine($"[Servidor] NetworkStream obtenido para vehículo ID {vehiculo.Id}.");
 
-                    // Enviar confirmación con ID asignado (Etapa 3)
-                    string respuesta = $"ID={vehiculo.Id}; Dirección={vehiculo.Direccion}";
-                    NetworkStreamClass.EscribirMensajeNetworkStream(ns, respuesta);
-                    Console.WriteLine($"[Servidor] Respondido a ID {vehiculo.Id}: {respuesta}");
-                }
+                // Etapa 6: Handshake
+                // 1. Servidor recibe petición 'INICIO'
+                string inicio = NetworkStreamClass.LeerMensajeNetworkStream(ns);
+                Console.WriteLine($"[Servidor] Handshake: recibido '{inicio}' de ID provisional {vehiculo.Id}.");
+
+                // 2. Servidor envía ID asignado
+                NetworkStreamClass.EscribirMensajeNetworkStream(ns, vehiculo.Id.ToString());
+                Console.WriteLine($"[Servidor] Handshake: enviado ID '{vehiculo.Id}'.");
+
+                // 3. Servidor recibe confirmación del ID
+                string confirmacion = NetworkStreamClass.LeerMensajeNetworkStream(ns);
+                Console.WriteLine($"[Servidor] Handshake: recibido confirmación ID '{confirmacion}'.");
+
+                Console.WriteLine($"[Servidor] Handshake completado con vehículo ID {vehiculo.Id}. Cliente listo.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Servidor] Error manejando cliente ID {id}: {ex.Message}");
+                Console.WriteLine($"[Servidor] Error en handshake con vehículo ID {id}: {ex.Message}");
             }
             finally
             {
