@@ -23,9 +23,9 @@ namespace Servidor
 
             while (true)
             {
-                var client = listener.AcceptTcpClient();
+                TcpClient client = listener.AcceptTcpClient();
                 Console.WriteLine("[Servidor] Cliente conectado, lanzando hilo de gestión...");
-                var t = new Thread(HandleClient);
+                Thread t = new Thread(HandleClient);
                 t.Start(client);
             }
         }
@@ -46,34 +46,34 @@ namespace Servidor
                 id = _nextId++;
                 direccion = _rand.Next(2) == 0 ? "Norte" : "Sur";
             }
-            var vehiculo = new Vehiculo { Id = id, Direccion = direccion };
+            Vehiculo vehiculo = new Vehiculo { Id = id, Direccion = direccion };
             Console.WriteLine($"[Servidor] Asignado ID {vehiculo.Id} y dirección {vehiculo.Direccion} al vehículo.");
 
             try
             {
                 // Etapa 4: obtener NetworkStream
-                NetworkStream ns = client.GetStream();
-                Console.WriteLine($"[Servidor] NetworkStream obtenido para vehículo ID {vehiculo.Id}.");
-                using (ns)
+                using (NetworkStream ns = client.GetStream())
                 {
+                    Console.WriteLine($"[Servidor] NetworkStream obtenido para vehículo ID {vehiculo.Id}.");
+                    
                     // Leer saludo del cliente (Etapa 1)
-                    var mensaje = NetworkStreamClass.LeerMensajeNetworkStream(ns);
+                    string mensaje = NetworkStreamClass.LeerMensajeNetworkStream(ns);
                     Console.WriteLine($"[Servidor] Recibido de ID {vehiculo.Id}: {mensaje}");
 
                     // Enviar confirmación con ID asignado (Etapa 3)
-                    var respuesta = $"ID={vehiculo.Id}; Dirección={vehiculo.Direccion}";
+                    string respuesta = $"ID={vehiculo.Id}; Dirección={vehiculo.Direccion}";
                     NetworkStreamClass.EscribirMensajeNetworkStream(ns, respuesta);
                     Console.WriteLine($"[Servidor] Respondido a ID {vehiculo.Id}: {respuesta}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Servidor] Error manejando cliente ID {vehiculo.Id}: {ex.Message}");
+                Console.WriteLine($"[Servidor] Error manejando cliente ID {id}: {ex.Message}");
             }
             finally
             {
                 client.Close();
-                Console.WriteLine($"[Servidor] Conexión con vehículo ID {vehiculo.Id} cerrada.");
+                Console.WriteLine($"[Servidor] Conexión con vehículo ID {id} cerrada.");
             }
         }
     }

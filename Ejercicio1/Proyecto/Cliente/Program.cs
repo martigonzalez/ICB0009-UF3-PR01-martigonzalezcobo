@@ -23,17 +23,17 @@ namespace Client
                     Console.WriteLine("[Cliente] Conectado al servidor.");
 
                     // Etapa 4: obtener NetworkStream
-                    NetworkStream ns = client.GetStream();
-                    Console.WriteLine("[Cliente] NetworkStream obtenido.");
-                    using (ns)
+                    using (NetworkStream ns = client.GetStream())
                     {
+                        Console.WriteLine("[Cliente] NetworkStream obtenido.");
+                        
                         // Etapa 1: enviar saludo
                         const string saludo = "Hola servidor, soy un vehículo";
                         NetworkStreamClass.EscribirMensajeNetworkStream(ns, saludo);
                         Console.WriteLine($"[Cliente] Enviado: {saludo}");
 
                         // Leer respuesta del servidor
-                        var respuesta = NetworkStreamClass.LeerMensajeNetworkStream(ns);
+                        string respuesta = NetworkStreamClass.LeerMensajeNetworkStream(ns);
                         Console.WriteLine($"[Cliente] Recibido: {respuesta}");
                     }
                 }

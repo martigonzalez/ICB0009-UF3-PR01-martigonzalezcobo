@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using System.Xml.Serialization;
 
 namespace VehiculoClass
@@ -22,16 +24,16 @@ namespace VehiculoClass
 
         public byte[] VehiculoaBytes()
         {
-            var ser = new XmlSerializer(typeof(Vehiculo));
-            using var ms = new MemoryStream();
+            XmlSerializer ser = new XmlSerializer(typeof(Vehiculo));
+            using MemoryStream ms = new MemoryStream();
             ser.Serialize(ms, this);
             return ms.ToArray();
         }
 
         public static Vehiculo BytesAVehiculo(byte[] data)
         {
-            var ser = new XmlSerializer(typeof(Vehiculo));
-            using var ms = new MemoryStream(data);
+            XmlSerializer ser = new XmlSerializer(typeof(Vehiculo));
+            using MemoryStream ms = new MemoryStream(data);
             return (Vehiculo)ser.Deserialize(ms)!;
         }
     }
