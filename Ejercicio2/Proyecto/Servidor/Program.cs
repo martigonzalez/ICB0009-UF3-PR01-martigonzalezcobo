@@ -1,103 +1,125 @@
 ﻿using System;
-using System.Net;
-using System.Net.Sockets;
-using System.Threading;
-using NetworkStreamNS;
-using CarreteraClass;
-using VehiculoClass;
 using System.Collections.Generic;
-using System.Xml.Serialization;
+using System.Threading;
 
-class Servidor
+namespace Servidor
 {
-    static List<TcpClient> clientesConectados = new List<TcpClient>();  // Lista para almacenar los clientes conectados
-    static Carretera carretera = new Carretera();  // La carretera que contiene los vehículos
-
-    static void Main(string[] args)
+    public class ControlDeTráfico
     {
-        // Dirección y puerto del servidor
-        string servidorIp = "127.0.0.1"; // IP del servidor
-        int puerto = 12345; // Puerto donde escucha el servidor
+        private string? VehiculoEnPuente = null; // Estado del puente: null si está libre
+        private Queue<string> colaEsperandoNorte = new Queue<string>(); // Cola para los vehículos del Norte
+        private Queue<string> colaEsperandoSur = new Queue<string>(); // Cola para los vehículos del Sur
+        private readonly object lockObject = new object(); // Para sincronizar el acceso al puente
 
-        try
+        // Método para simular que un vehículo intenta entrar al puente
+        public void IntentarCruzarPuente(string direccion, string vehiculoId)
         {
-            // Crear un servidor TCP
-            TcpListener servidor = new TcpListener(IPAddress.Parse(servidorIp), puerto);
-            servidor.Start();
-            Console.WriteLine("Servidor iniciado. Esperando clientes...");
-
-            while (true)
+            lock (lockObject) // Sincronizamos el acceso a la sección crítica
             {
-                // Aceptar la conexión de un cliente
-                TcpClient cliente = servidor.AcceptTcpClient();
-                clientesConectados.Add(cliente);  // Agregar cliente a la lista de conectados
-                NetworkStream ns = cliente.GetStream();
-                Console.WriteLine("Cliente conectado.");
-
-                // Crear un hilo para manejar la comunicación con el cliente
-                Thread clienteThread = new Thread(() => ManejarCliente(cliente, ns));
-                clienteThread.Start();
+                if (VehiculoEnPuente == null) // Si el puente está libre
+                {
+                    // El vehículo entra al puente
+                    VehiculoEnPuente = vehiculoId;
+                    Console.WriteLine($"Vehículo {vehiculoId} ({direccion}) entra al puente.");
+                }
+                else
+                {
+                    // Si el puente está ocupado, el vehículo debe esperar
+                    Console.WriteLine($"Vehículo {vehiculoId} ({direccion}) espera: Puente ocupado por {VehiculoEnPuente}.");
+                    if (direccion == "Norte")
+                    {
+                        colaEsperandoNorte.Enqueue(vehiculoId); // Encola el vehículo para el Norte
+                    }
+                    else
+                    {
+                        colaEsperandoSur.Enqueue(vehiculoId); // Encola el vehículo para el Sur
+                    }
+                }
             }
         }
-        catch (Exception ex)
+
+        // Método para simular que un vehículo ha cruzado el puente
+        public void CruceFinalizado(string vehiculoId)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            lock (lockObject) // Sincronizamos el acceso a la sección crítica
+            {
+                if (VehiculoEnPuente == vehiculoId)
+                {
+                    Console.WriteLine($"Vehículo {vehiculoId} sale del puente.");
+
+                    // Libera el puente
+                    VehiculoEnPuente = null;
+
+                    // Notifica al siguiente vehículo en espera (si lo hay)
+                    NotificarSiguienteVehiculo();
+                }
+            }
+        }
+
+        // Método para notificar al siguiente vehículo en la cola que puede avanzar
+        private void NotificarSiguienteVehiculo()
+        {
+            // Prioriza la cola de la dirección opuesta, luego la misma dirección
+            if (colaEsperandoSur.Count > 0)
+            {
+                string siguienteVehiculoSur = colaEsperandoSur.Dequeue();
+                Console.WriteLine($"Vehículo {siguienteVehiculoSur} (Sur) puede avanzar al puente.");
+                VehiculoEnPuente = siguienteVehiculoSur; // El vehículo pasa al puente
+            }
+            else if (colaEsperandoNorte.Count > 0)
+            {
+                string siguienteVehiculoNorte = colaEsperandoNorte.Dequeue();
+                Console.WriteLine($"Vehículo {siguienteVehiculoNorte} (Norte) puede avanzar al puente.");
+                VehiculoEnPuente = siguienteVehiculoNorte; // El vehículo pasa al puente
+            }
         }
     }
 
-    // Método para manejar la comunicación con un cliente específico
-    static void ManejarCliente(TcpClient cliente, NetworkStream ns)
+    public class Servidor
     {
-        try
+        private ControlDeTráfico controlDeTráfico;
+
+        public Servidor()
         {
-            while (true)
-            {
-                // Leer el vehículo enviado por el cliente
-                Vehiculo vehiculoRecibido = NetworkStreamClass.LeerDatosVehiculoNS(ns);
-                Console.WriteLine($"Vehículo recibido con ID: {vehiculoRecibido.Id}");
-
-                // Actualizar la carretera con el vehículo recibido
-                carretera.ActualizarVehiculo(vehiculoRecibido);
-
-                // Enviar los datos de la carretera a todos los clientes
-                EnviarDatosATodosLosClientes();
-
-                // Esperar un poco antes de continuar (simula la actualización periódica)
-                Thread.Sleep(500);
-            }
+            controlDeTráfico = new ControlDeTráfico();
         }
-        catch (Exception ex)
+
+        // Método para manejar las solicitudes de los vehículos
+        public void ProcesarSolicitud(string direccion, string vehiculoId)
         {
-            Console.WriteLine($"Error en la comunicación con el cliente: {ex.Message}");
+            controlDeTráfico.IntentarCruzarPuente(direccion, vehiculoId);
         }
-        finally
+
+        // Método para simular que un vehículo ha cruzado el puente
+        public void CruceFinalizado(string vehiculoId)
         {
-            // Cerrar la conexión con el cliente cuando se desconecte
-            clientesConectados.Remove(cliente);
-            cliente.Close();
+            controlDeTráfico.CruceFinalizado(vehiculoId);
         }
     }
 
-    // Método para enviar los datos de la carretera a todos los clientes conectados
-    static void EnviarDatosATodosLosClientes()
+    class Program
     {
-        // Serializar la carretera
-        byte[] carreteraBytes = carretera.CarreteraABytes();
-
-        // Recorrer todos los clientes conectados y enviarles los datos de la carretera
-        foreach (TcpClient cliente in clientesConectados)
+        static void Main(string[] args)
         {
-            try
-            {
-                NetworkStream ns = cliente.GetStream();
-                // Cambiar esta línea
-                NetworkStreamClass.EscribirDatosCarreteraNS(ns, carretera);  // Usamos EscribirDatosCarreteraNS
+            Servidor servidor = new Servidor();
 
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error al enviar datos al cliente: {ex.Message}");
-            }
+            // Simulación de vehículos intentando cruzar el puente
+            servidor.ProcesarSolicitud("Norte", "Vehiculo1");
+            Thread.Sleep(2000); // Espera de 2 segundos antes de otro intento
+            servidor.ProcesarSolicitud("Sur", "Vehiculo2");
+            Thread.Sleep(2000);
+            servidor.ProcesarSolicitud("Norte", "Vehiculo3");
+
+            // Simulación de vehículos cruzando el puente
+            Thread.Sleep(5000); // El vehículo 1 cruza el puente
+            servidor.CruceFinalizado("Vehiculo1");
+
+            Thread.Sleep(3000); // El vehículo 2 cruza el puente
+            servidor.CruceFinalizado("Vehiculo2");
+
+            // El vehículo 3 ahora puede cruzar
+            Thread.Sleep(2000);
+            servidor.CruceFinalizado("Vehiculo3");
         }
     }
 }

@@ -1,10 +1,10 @@
 ﻿using System;
 using System.IO;
-using System.Xml.Serialization;
+using System.Net.Sockets;
+using System.Threading;
 using VehiculoClass;
 using CarreteraClass;
 using NetworkStreamNS;
-using System.Net.Sockets;
 
 namespace Cliente
 {
