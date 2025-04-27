@@ -29,7 +29,7 @@ namespace Client
                         NetworkStreamClass.EscribirMensajeNetworkStream(ns, saludo);
                         Console.WriteLine($"[Cliente] Enviado: {saludo}");
 
-                        // Leer respuesta
+                        // Leer respuesta del servidor
                         var respuesta = NetworkStreamClass.LeerMensajeNetworkStream(ns);
                         Console.WriteLine($"[Cliente] Recibido: {respuesta}");
                     }

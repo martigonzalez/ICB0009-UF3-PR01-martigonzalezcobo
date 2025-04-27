@@ -10,6 +10,10 @@ namespace Servidor
 {
     class Program
     {
+        private static int _nextId = 1;
+        private static readonly object _idLock = new object();
+        private static readonly Random _rand = new Random();
+
         static void Main(string[] args)
         {
             const int port = 5000;
@@ -17,10 +21,9 @@ namespace Servidor
             listener.Start();
             Console.WriteLine($"[Servidor] Escuchando en el puerto {port}...");
 
-            // Etapa 2: aceptar clientes concurrentemente
             while (true)
             {
-                TcpClient client = listener.AcceptTcpClient();
+                var client = listener.AcceptTcpClient();
                 Console.WriteLine("[Servidor] Cliente conectado, lanzando hilo de gestión...");
                 var t = new Thread(HandleClient);
                 t.Start(client);
@@ -35,29 +38,39 @@ namespace Servidor
                 return;
             }
 
-            Console.WriteLine("[Servidor] Gestionando nuevo vehículo...");
+            // Etapa 3: asignar ID único y dirección aleatoria
+            int id;
+            string direccion;
+            lock (_idLock)
+            {
+                id = _nextId++;
+                direccion = _rand.Next(2) == 0 ? "Norte" : "Sur";
+            }
+            var vehiculo = new Vehiculo { Id = id, Direccion = direccion };
+            Console.WriteLine($"[Servidor] Asignado ID {vehiculo.Id} y dirección {vehiculo.Direccion} al vehículo.");
+
             try
             {
                 using (var ns = client.GetStream())
                 {
                     // Leer saludo del cliente
                     var mensaje = NetworkStreamClass.LeerMensajeNetworkStream(ns);
-                    Console.WriteLine($"[Servidor] Recibido: {mensaje}");
+                    Console.WriteLine($"[Servidor] Recibido de ID {vehiculo.Id}: {mensaje}");
 
-                    // Enviar confirmación
-                    const string respuesta = "Vehículo recibido";
+                    // Enviar confirmación con ID asignado
+                    var respuesta = $"ID={vehiculo.Id}; Dirección={vehiculo.Direccion}";
                     NetworkStreamClass.EscribirMensajeNetworkStream(ns, respuesta);
-                    Console.WriteLine($"[Servidor] Respondido: {respuesta}");
+                    Console.WriteLine($"[Servidor] Respondido a ID {vehiculo.Id}: {respuesta}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Servidor] Error manejando cliente: {ex.Message}");
+                Console.WriteLine($"[Servidor] Error manejando cliente ID {vehiculo.Id}: {ex.Message}");
             }
             finally
             {
                 client.Close();
-                Console.WriteLine("[Servidor] Conexión con vehículo cerrada.");
+                Console.WriteLine($"[Servidor] Conexión con vehículo ID {vehiculo.Id} cerrada.");
             }
         }
     }
