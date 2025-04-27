@@ -32,23 +32,40 @@ class Servidor
                 NetworkStream ns = cliente.GetStream();
                 Console.WriteLine("Cliente conectado.");
 
-                // Leer el vehículo enviado por el cliente
-                Vehiculo vehiculoRecibido = NetworkStreamClass.LeerDatosVehiculoNS(ns);
-                Console.WriteLine($"Vehículo recibido con ID: {vehiculoRecibido.Id}");
+                // Leer los datos del vehículo enviado por el cliente
+                Vehiculo vehiculoRecibido = null;
 
-                // Añadir el vehículo a la carretera
-                carretera.AñadirVehiculo(vehiculoRecibido);
-
-                // Mostrar los vehículos en la carretera
-                string vehiculosEnCarretera = "Vehículos en la carretera:\n";
-                foreach (Vehiculo v in carretera.VehiculosEnCarretera)
+                // Bucle que maneja la actualización del vehículo
+                while (true)
                 {
-                    vehiculosEnCarretera += $"ID: {v.Id} - Pos: {v.Pos} - Dir: {v.Direccion}\n";
-                }
+                    // Leer el vehículo desde el cliente
+                    vehiculoRecibido = NetworkStreamClass.LeerDatosVehiculoNS(ns);
+                    Console.WriteLine($"Vehículo recibido con ID: {vehiculoRecibido.Id} - Pos: {vehiculoRecibido.Pos}");
 
-                // Enviar la lista de vehículos al cliente
-                NetworkStreamClass.EscribirMensajeNetworkStream(ns, vehiculosEnCarretera);
-                Console.WriteLine("Vehículos enviados al cliente.");
+                    // Actualizar la carretera con el vehículo
+                    carretera.ActualizarVehiculo(vehiculoRecibido);
+
+                    // Mostrar los vehículos en la carretera
+                    string vehiculosEnCarretera = "Vehículos en la carretera:\n";
+                    foreach (Vehiculo v in carretera.VehiculosEnCarretera)
+                    {
+                        vehiculosEnCarretera += $"ID: {v.Id} - Pos: {v.Pos} - Dir: {v.Direccion}\n";
+                    }
+
+                    // Enviar la lista de vehículos al cliente
+                    NetworkStreamClass.EscribirMensajeNetworkStream(ns, vehiculosEnCarretera);
+                    Console.WriteLine("Vehículos enviados al cliente.");
+
+                    // Si el vehículo ha terminado su recorrido, salir del bucle
+                    if (vehiculoRecibido.Acabado)
+                    {
+                        Console.WriteLine($"El vehículo ID: {vehiculoRecibido.Id} ha completado su recorrido.");
+                        break;
+                    }
+
+                    // Esperar antes de leer el siguiente paquete
+                    Thread.Sleep(500);
+                }
 
                 // Cerrar la conexión con el cliente
                 cliente.Close();

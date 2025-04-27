@@ -31,11 +31,40 @@ class Cliente
                 Parado = false
             };
 
-            // Enviar los datos del vehículo al servidor
+            // Enviar el vehículo al servidor
             NetworkStreamClass.EscribirDatosVehiculoNS(ns, nuevoVehiculo);
             Console.WriteLine($"Vehículo creado con ID: {nuevoVehiculo.Id} y enviado al servidor.");
 
-            // Esperar un poco para que el servidor procese los datos
+            // Avanzar el vehículo en un bucle de 0 a 100
+            for (int i = 1; i <= 100; i++)
+            {
+                // Actualizar la posición del vehículo
+                nuevoVehiculo.Pos = i;
+
+                // Si el vehículo ha llegado al final, marcarlo como acabado
+                if (i == 100)
+                {
+                    nuevoVehiculo.Acabado = true;
+                    Console.WriteLine("Vehículo ha completado su recorrido.");
+                }
+
+                // Enviar los datos actualizados del vehículo al servidor
+                NetworkStreamClass.EscribirDatosVehiculoNS(ns, nuevoVehiculo);
+
+                // Mostrar el avance en la consola
+                Console.WriteLine($"Vehículo ID: {nuevoVehiculo.Id} - Pos: {nuevoVehiculo.Pos}");
+
+                // Simular el tiempo de avance según la velocidad del vehículo
+                Thread.Sleep(1000 / (nuevoVehiculo.Velocidad / 100)); // La velocidad influye en la pausa
+
+                // Si el vehículo ha terminado, salir del bucle
+                if (nuevoVehiculo.Acabado)
+                {
+                    break;
+                }
+            }
+
+            // Esperar un poco para que el servidor procese los datos y actualice la carretera
             Thread.Sleep(1000);
 
             // Mostrar los vehículos de la carretera (en este ejemplo solo se muestra el ID)
