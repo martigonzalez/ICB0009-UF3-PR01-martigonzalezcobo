@@ -9,23 +9,72 @@ namespace NetworkStreamNS
 {
     public class NetworkStreamClass
     {
-        // Escribir datos de tipo Carretera (implementar cuando se necesite)
+        // Escribir datos de tipo Carretera
         public static void EscribirDatosCarreteraNS(NetworkStream NS, Carretera C)
         {
-            // TODO: Serializar y enviar C a través de NS
+            // Serializamos el objeto Carretera en bytes
+            byte[] datosCarretera = C.CarreteraABytes();
+
+            // Escribimos los bytes en el NetworkStream
+            NS.Write(datosCarretera, 0, datosCarretera.Length);
         }
 
-        // Leer datos de tipo Carretera (implementar cuando se necesite)
-        // public static Carretera LeerDatosCarreteraNS(NetworkStream NS) { }
+        // Leer datos de tipo Carretera
+        public static Carretera LeerDatosCarreteraNS(NetworkStream NS)
+        {
+            byte[] buffer = new byte[1024]; // Tamaño de buffer para la lectura
+            int bytesLeidos = 0;
+            using (MemoryStream ms = new MemoryStream())
+            {
+                // Leemos hasta que no haya más datos disponibles
+                do
+                {
+                    int read = NS.Read(buffer, 0, buffer.Length);
+                    ms.Write(buffer, 0, read);
+                    bytesLeidos += read;
+                } while (NS.DataAvailable);
 
-        // Escribir datos de tipo Vehiculo (implementar cuando se necesite)
+                // Deserializamos los bytes leídos en un objeto Carretera
+                return Carretera.BytesACarretera(ms.ToArray());
+            }
+        }
+
+        // Escribir datos de tipo Vehiculo
         public static void EscribirDatosVehiculoNS(NetworkStream NS, Vehiculo V)
         {
-            // TODO: Serializar y enviar V a través de NS
+            // Serializamos el objeto Vehiculo en bytes
+            XmlSerializer serializer = new XmlSerializer(typeof(Vehiculo));
+            using (MemoryStream ms = new MemoryStream())
+            {
+                serializer.Serialize(ms, V);
+                byte[] datosVehiculo = ms.ToArray();
+
+                // Escribimos los bytes en el NetworkStream
+                NS.Write(datosVehiculo, 0, datosVehiculo.Length);
+            }
         }
 
-        // Leer datos de tipo Vehiculo (implementar cuando se necesite)
-        // public static Vehiculo LeerDatosVehiculoNS(NetworkStream NS) { }
+        // Leer datos de tipo Vehiculo
+        public static Vehiculo LeerDatosVehiculoNS(NetworkStream NS)
+        {
+            byte[] buffer = new byte[1024]; // Tamaño de buffer para la lectura
+            int bytesLeidos = 0;
+            using (MemoryStream ms = new MemoryStream())
+            {
+                // Leemos hasta que no haya más datos disponibles
+                do
+                {
+                    int read = NS.Read(buffer, 0, buffer.Length);
+                    ms.Write(buffer, 0, read);
+                    bytesLeidos += read;
+                } while (NS.DataAvailable);
+
+                // Deserializamos los bytes leídos en un objeto Vehiculo
+                XmlSerializer serializer = new XmlSerializer(typeof(Vehiculo));
+                ms.Seek(0, SeekOrigin.Begin); // Nos aseguramos de posicionarnos al principio del stream
+                return (Vehiculo)serializer.Deserialize(ms);
+            }
+        }
 
         // Leer mensaje de texto
         public static string LeerMensajeNetworkStream(NetworkStream NS)
